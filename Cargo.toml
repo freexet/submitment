@@ -6,7 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "=4.0.0-beta.8"
+actix-web = "=4.0.0-beta.9"
 juniper = "0.15"
 sqlx = { version = "0.5", features = [ "runtime-actix-rustls", "postgres", "chrono", "migrate" ] }
 
@@ -16,7 +16,7 @@ serde_json = "1.0"
 
 nanoid = "0.4"
 jsonwebtoken = "7.2"
-argon2 = "0.2"
+argon2 = "0.3"
 rand_core = { version = "0.6", features = ["std"] }
 
 thiserror = "1.0"

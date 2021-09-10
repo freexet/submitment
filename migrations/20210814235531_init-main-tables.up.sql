@@ -35,15 +35,17 @@ CREATE TABLE IF NOT EXISTS reviewers (
     user_id VARCHAR(24) PRIMARY KEY REFERENCES users(id),
     name VARCHAR(256),
     email VARCHAR(256) NOT NULL,
-    phone_number VARCHAR(16)
+    phone_number VARCHAR(16),
+    is_verified BOOLEAN DEFAULT FALSE,
+    profile_pict_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
     id VARCHAR(24) PRIMARY KEY,
     user_id VARCHAR(24) REFERENCES users(id),
     reviewer_id VARCHAR(24) REFERENCES reviewers(user_id),
-    question TEXT,
-    answer TEXT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
     score REAL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

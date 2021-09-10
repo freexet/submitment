@@ -1,7 +1,13 @@
-use sqlx::{postgres::PgPoolOptions, PgPool, Result};
+use sqlx::{
+    postgres::{PgPoolOptions, PgRow},
+    PgPool, Result, Row,
+};
 use std::env;
 
-use crate::schema::auth::{CreateUserParams, User};
+use crate::schema::{
+    auth::{CreateUserParams, User},
+    submission::Submission,
+};
 
 #[derive(Clone)]
 pub struct Repository {
@@ -39,5 +45,30 @@ impl Repository {
             .bind(username)
             .fetch_one(&self.pool)
             .await
+    }
+
+    pub async fn get_all_submissions(&self) -> Result<Vec<Submission>> {
+        sqlx::query(
+            r#"
+                SELECT * 
+                FROM submissions AS s
+                INNER JOIN users ON s.user_id = users.id
+                ORDER BY s.created_at DESC
+            "#,
+        )
+        // TODO: Create mapper with macro
+        .map(|row: PgRow| Submission {
+            id: row.get("s.id"),
+            user: User::from_row(&row),
+            reviewer_id: row.get("s.reviewer_id"),
+            question: row.get("s.question"),
+            answer: row.get("s.answer"),
+            score: row.get("s.score"),
+            created_at: row.get("s.created_at"),
+            updated_at: row.get("s.updated_at"),
+            deleted_at: row.get("s.deleted_at"),
+        })
+        .fetch_all(&self.pool)
+        .await
     }
 }

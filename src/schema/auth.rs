@@ -1,13 +1,15 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use sqlx::{postgres::PgRow, Row};
 use std::env;
 
 use crate::util::verify_password;
 
-#[derive(sqlx::FromRow)]
+#[derive(juniper::GraphQLObject, sqlx::FromRow)]
 pub struct User {
     pub id: String,
     pub username: String,
+    #[graphql(skip)]
     password_hash: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -16,6 +18,16 @@ pub struct User {
 impl User {
     pub fn verify_password(&self, password: &str) -> Result<(), argon2::password_hash::Error> {
         verify_password(&self.password_hash, password)
+    }
+
+    pub fn from_row(row: &PgRow) -> Self {
+        User {
+            id: row.get("users.id"),
+            username: row.get("users.username"),
+            password_hash: row.get("users.password_hash"),
+            created_at: row.get("users.created_at"),
+            updated_at: row.get("users.updated_at"),
+        }
     }
 }
 
