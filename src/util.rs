@@ -19,7 +19,7 @@ pub fn hash_password(password: &str) -> Result<String, Error> {
 
 pub fn verify_password(password_hash: &str, password: &str) -> Result<(), Error> {
     let argon = Argon2::default();
-    let hash = PasswordHash::new(&password_hash).expect("Failed to parse");
+    let hash = PasswordHash::new(password_hash).expect("Failed to parse");
 
     argon.verify_password(password.as_bytes(), &hash)
 }

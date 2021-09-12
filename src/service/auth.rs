@@ -3,7 +3,7 @@ use nanoid::nanoid;
 
 use crate::error::ServerError;
 use crate::repository::Repository;
-use crate::schema::auth::{CreateUserParams, Token};
+use crate::schema::auth::{UserForm, Token};
 use crate::util::{generate_jwt, hash_password};
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ impl AuthService {
             Err(_) => bail!(ServerError::Internal),
         };
 
-        let params = CreateUserParams {
+        let params = UserForm {
             id,
             username,
             password_hash,

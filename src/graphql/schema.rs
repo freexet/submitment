@@ -25,6 +25,10 @@ impl Query {
             .await
             .map_err(|e| e.into())
     }
+    #[graphql(description = "Get a submission by its ID")]
+    pub async fn submission_by_id(ctx: &Context, id: String) -> FieldResult<Submission> {
+        ctx.service.submission.get_submission_by_id(&id).await.map_err(|e| e.into())
+    }
 }
 
 pub struct Mutation;
@@ -46,6 +50,10 @@ impl Mutation {
             .login(username, password)
             .await
             .map_err(|e| e.into())
+    }
+    #[graphql(description = "Submit a submission")]
+    pub async fn submit_submission(ctx: &Context, user_id: String, question: String, answer: String) -> FieldResult<Submission> {
+        ctx.service.submission.submit_submission(&user_id, &question, &answer).await.map_err(|e| e.into())
     }
 }
 

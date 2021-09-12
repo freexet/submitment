@@ -1,12 +1,9 @@
-use sqlx::{
-    postgres::{PgPoolOptions, PgRow},
-    PgPool, Result, Row,
-};
+use sqlx::{PgPool, Result, postgres::{PgPoolOptions}, query_file};
 use std::env;
 
 use crate::schema::{
-    auth::{CreateUserParams, User},
-    submission::Submission,
+    auth::{UserForm, User, ResponseUser},
+    submission::{Submission, SubmissionForm},
 };
 
 #[derive(Clone)]
@@ -21,11 +18,13 @@ impl Repository {
             .connect_timeout(std::time::Duration::from_secs(5))
             .connect(&db_url)
             .await?;
+        
+        sqlx::migrate!().run(&pool).await?;
 
         Ok(Repository { pool })
     }
 
-    pub async fn insert_new_user(&self, params: CreateUserParams) -> Result<User> {
+    pub async fn insert_new_user(&self, form: UserForm) -> Result<User> {
         sqlx::query_as::<_, User>(
             r#"
                 INSERT INTO users (id, username, password_hash)
@@ -33,9 +32,9 @@ impl Repository {
                 RETURNING *
             "#,
         )
-        .bind(&params.id)
-        .bind(&params.username)
-        .bind(&params.password_hash)
+        .bind(&form.id)
+        .bind(&form.username)
+        .bind(&form.password_hash)
         .fetch_one(&self.pool)
         .await
     }
@@ -47,28 +46,84 @@ impl Repository {
             .await
     }
 
-    pub async fn get_all_submissions(&self) -> Result<Vec<Submission>> {
-        sqlx::query(
+    pub async fn insert_new_submission<'a>(&self, form: SubmissionForm<'a>) -> Result<Submission> {
+        let mut trx = self.pool.begin().await?;
+
+        sqlx::query!(
             r#"
-                SELECT * 
-                FROM submissions AS s
-                INNER JOIN users ON s.user_id = users.id
-                ORDER BY s.created_at DESC
+                INSERT INTO submissions (id, user_id, question, answer)
+                VALUES ($1, $2, $3, $4)
             "#,
+            form.id,
+            form.user_id,
+            form.question,
+            form.answer
         )
-        // TODO: Create mapper with macro
-        .map(|row: PgRow| Submission {
-            id: row.get("s.id"),
-            user: User::from_row(&row),
-            reviewer_id: row.get("s.reviewer_id"),
-            question: row.get("s.question"),
-            answer: row.get("s.answer"),
-            score: row.get("s.score"),
-            created_at: row.get("s.created_at"),
-            updated_at: row.get("s.updated_at"),
-            deleted_at: row.get("s.deleted_at"),
-        })
-        .fetch_all(&self.pool)
-        .await
+        .execute(&mut trx)
+        .await?;
+
+        let sub = query_file!("sql/get_submission_by_id.sql", &form.id).fetch_one(&mut trx).await?;
+
+        trx.commit().await?;
+
+        let submission = Submission {
+            id: sub.id.clone(),
+            user: ResponseUser {
+                id: sub.user_id.clone(),
+                username: sub.username.clone(),
+                created_at: sub.user_created_at.unwrap()
+            },
+            reviewer_id: sub.reviewer_id.clone(),
+            question: sub.question.clone(),
+            answer: sub.answer.clone(),
+            score: sub.score,
+            created_at: sub.created_at.unwrap(),
+            updated_at: sub.updated_at.unwrap(),
+            deleted_at: None
+        };
+
+        Ok(submission)
+    }
+
+    pub async fn get_submission_by_id(&self, id: &str) -> Result<Submission> {
+        let sub = query_file!("sql/get_submission_by_id.sql", id).fetch_one(&self.pool).await?;
+        let submission = Submission {
+            id: sub.id.clone(),
+            user: ResponseUser {
+                id: sub.user_id.clone(),
+                username: sub.username.clone(),
+                created_at: sub.user_created_at.unwrap()
+            },
+            reviewer_id: sub.reviewer_id.clone(),
+            question: sub.question.clone(),
+            answer: sub.answer.clone(),
+            score: sub.score,
+            created_at: sub.created_at.unwrap(),
+            updated_at: sub.updated_at.unwrap(),
+            deleted_at: None
+        };
+
+        Ok(submission)
+    }
+
+    pub async fn get_all_submissions(&self) -> Result<Vec<Submission>> {
+        let submissions = query_file!("sql/get_all_submissions.sql").fetch_all(&self.pool).await?;
+        let submissions: Vec<Submission> = submissions.iter().map(|sub| Submission {
+            id: sub.id.clone(),
+            user: ResponseUser {
+                id: sub.user_id.clone(),
+                username: sub.username.clone(),
+                created_at: sub.user_created_at.unwrap()
+            },
+            reviewer_id: sub.reviewer_id.clone(),
+            question: sub.question.clone(),
+            answer: sub.answer.clone(),
+            score: sub.score,
+            created_at: sub.created_at.unwrap(),
+            updated_at: sub.updated_at.unwrap(),
+            deleted_at: None
+        }).collect();
+
+        Ok(submissions)
     }
 }

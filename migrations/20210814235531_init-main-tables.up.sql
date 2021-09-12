@@ -8,7 +8,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(24) PRIMARY KEY,
-    username VARCHAR(256) UNIQUE,
+    username VARCHAR(256) UNIQUE NOT NULL,
     password_hash VARCHAR(128) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     reviewer_id VARCHAR(24) REFERENCES reviewers(user_id),
     question TEXT NOT NULL,
     answer TEXT NOT NULL,
-    score REAL,
+    score DOUBLE PRECISION,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
