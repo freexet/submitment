@@ -1,6 +1,7 @@
 use actix_web::{
+    http::header,
     web::{self, Data, Json, ServiceConfig},
-    Error, HttpResponse,
+    Error, HttpRequest, HttpResponse,
 };
 use juniper::http::{playground::playground_source, GraphQLRequest};
 
@@ -18,9 +19,14 @@ async fn graphql(
     service: Data<Service>,
     schema: Data<Schema>,
     data: Json<GraphQLRequest>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let ctx = Context {
         service: service.get_ref().to_owned(),
+        auth: match req.headers().get(header::AUTHORIZATION) {
+            Some(token) => Some(String::from(token.to_owned().to_str().unwrap())),
+            None => None,
+        },
     };
 
     let res = data.execute(&schema, &ctx).await;

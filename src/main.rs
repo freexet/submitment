@@ -24,6 +24,8 @@ async fn greet(req: HttpRequest) -> impl Responder {
 #[actix_web::main]
 async fn main() -> Result<()> {
     dotenv().ok();
+    
+    color_eyre::install()?;
 
     let repository = Repository::new().await?;
     let service = Service {

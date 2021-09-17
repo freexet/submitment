@@ -2,10 +2,12 @@ use juniper::{graphql_object, EmptySubscription, FieldResult, RootNode};
 
 use crate::schema::{auth::Token, submission::Submission};
 use crate::service::Service;
+use crate::util::authenticate;
 
 #[derive(Clone)]
 pub struct Context {
     pub service: Service,
+    pub auth: Option<String>,
 }
 
 impl juniper::Context for Context {}
@@ -27,7 +29,11 @@ impl Query {
     }
     #[graphql(description = "Get a submission by its ID")]
     pub async fn submission_by_id(ctx: &Context, id: String) -> FieldResult<Submission> {
-        ctx.service.submission.get_submission_by_id(&id).await.map_err(|e| e.into())
+        ctx.service
+            .submission
+            .get_submission_by_id(&id)
+            .await
+            .map_err(|e| e.into())
     }
 }
 
@@ -52,8 +58,16 @@ impl Mutation {
             .map_err(|e| e.into())
     }
     #[graphql(description = "Submit a submission")]
-    pub async fn submit_submission(ctx: &Context, user_id: String, question: String, answer: String) -> FieldResult<Submission> {
-        ctx.service.submission.submit_submission(&user_id, &question, &answer).await.map_err(|e| e.into())
+    pub async fn submit_submission(
+        ctx: &Context,
+        question: String,
+        answer: String,
+    ) -> FieldResult<Submission> {
+        ctx.service
+            .submission
+            .submit_submission(&authenticate(ctx)?, &question, &answer)
+            .await
+            .map_err(|e| e.into())
     }
 }
 

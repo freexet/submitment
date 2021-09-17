@@ -3,10 +3,12 @@ use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use color_eyre::eyre::eyre;
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand_core::OsRng;
-use std::fs::read;
+use std::{env, fs::read};
 
+use crate::graphql::schema::Context;
 use crate::schema::auth::Claims;
 
 pub fn hash_password(password: &str) -> Result<String, Error> {
@@ -34,4 +36,40 @@ pub fn generate_jwt(user_id: &str, expires_in_minute: i64) -> color_eyre::Result
     let header = Header::new(Algorithm::ES256);
 
     encode(&header, &claims, &key).map_err(|e| e.into())
+}
+
+pub fn get_token(ctx: &Context) -> color_eyre::Result<&str> {
+    let auth_header = match &ctx.auth {
+        Some(header) => header,
+        None => return Err(eyre!("Unauthorized")),
+    };
+
+    let token: Vec<&str> = auth_header.split_ascii_whitespace().collect();
+
+    if *token.get(0).unwrap() != "Bearer" {
+        return Err(eyre!("Unauthorized"));
+    }
+
+    match token.get(1) {
+        Some(token) => Ok(*token),
+        None => Err(eyre!("Unauthorized")),
+    }
+}
+
+pub fn authenticate(ctx: &Context) -> color_eyre::Result<String> {
+    let token = get_token(ctx)?;
+
+    let public_key = read("public.pem")?;
+    let key = DecodingKey::from_ec_pem(&public_key)?;
+
+    let validation = Validation {
+        iss: env::var("HOST").ok(),
+        algorithms: vec![Algorithm::ES256],
+        ..Default::default()
+    };
+
+    match decode::<Claims>(token, &key, &validation) {
+        Ok(token) => Ok(token.claims.sub),
+        Err(_) => Err(eyre!("Unauthorized")),
+    }
 }

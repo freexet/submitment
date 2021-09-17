@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use sqlx::FromRow;
 use std::env;
 
@@ -34,7 +34,7 @@ pub struct UserForm {
     pub password_hash: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Claims {
     iss: String,
     exp: i64,
